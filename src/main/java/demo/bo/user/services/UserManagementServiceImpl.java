@@ -10,7 +10,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class UserManagementServiceImpl implements UserManagementService {
@@ -60,16 +62,19 @@ public class UserManagementServiceImpl implements UserManagementService {
         }
 
         userDao.delete(userToDelete);
+        if (userToDelete.getPermissions()!=null && ! userToDelete.getPermissions().isEmpty()) {
+            userPermissionDao.deleteAll(userToDelete.getPermissions()); //or use a cascade
+        }
     }
 
     @Override
     public User getUser(int userId) {
 
-        if (userId <= 1) {
+        if (userId < 1) {
             throw new IllegalArgumentException("user id must be provided");
         }
-
-        return userDao.getOne(userId);
+        Optional<User> user = userDao.findById(userId);
+        return (user.isPresent() ? user.get() : null);
     }
 
     @Override
@@ -84,20 +89,49 @@ public class UserManagementServiceImpl implements UserManagementService {
         }
 
         // check the user exists and that he doesn't already have the granted permission
-        User user = userDao.getOne(userToGrant.getId());
-        if (user == null) {
+        Optional<User> user = userDao.findById(userToGrant.getId());
+        if (! user.isPresent()) {
             throw new UserManagementException("Unable to grant permission to this user : he doesn't exist anymore");
         }
-        for (UserPermission permission : user.getPermissions()) {
+        for (UserPermission permission : user.get().getPermissions()) {
             if (permission.getPermission().equals(permissionType)) {
                 throw new UserManagementException("Permission already granted");
             }
         }
 
+        // grant the new permission
+        UserPermissionId permissionId = new UserPermissionId();
+        permissionId.setUserId(userToGrant.getId());
+        UserPermission permission = new UserPermission();
+        permission.setId(permissionId);
+        permission.setPermission(permissionType);
+        permission.setGrantDate(new Date());
+
+        userPermissionDao.save(permission);
     }
 
     @Override
     public void revokePermission(User userToRevoke, PermissionEnum permissionType) throws UserManagementException {
 
+        if (userToRevoke == null) {
+            throw new IllegalArgumentException("user to grant must be provided");
+        }
+
+        if (permissionType == null) {
+            throw new IllegalArgumentException("permission to grant must be provided");
+        }
+
+        // check the user exists and that he doesn't already have the granted permission
+        User user = userDao.getOne(userToRevoke.getId());
+        if (user == null) {
+            throw new UserManagementException("Unable to grant permission to this user : he doesn't exist anymore");
+        }
+        for (UserPermission permission : user.getPermissions()) {
+            if (permission.getPermission().equals(permissionType)) {
+                userPermissionDao.delete(permission);
+            }
+        }
     }
+
+
 }
