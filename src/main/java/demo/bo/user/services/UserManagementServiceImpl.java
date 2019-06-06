@@ -13,6 +13,7 @@ import org.springframework.util.StringUtils;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class UserManagementServiceImpl implements UserManagementService {
@@ -62,9 +63,9 @@ public class UserManagementServiceImpl implements UserManagementService {
         }
 
         userDao.delete(userToDelete);
-        if (userToDelete.getPermissions()!=null && ! userToDelete.getPermissions().isEmpty()) {
+        /*if (userToDelete.getPermissions()!=null && ! userToDelete.getPermissions().isEmpty()) {
             userPermissionDao.deleteAll(userToDelete.getPermissions()); //or use a cascade
-        }
+        }*/
     }
 
     @Override
@@ -100,8 +101,7 @@ public class UserManagementServiceImpl implements UserManagementService {
         }
 
         // grant the new permission
-        UserPermissionId permissionId = new UserPermissionId();
-        permissionId.setUserId(userToGrant.getId());
+        UserPermissionId permissionId = new UserPermissionId(userToGrant.getId());
         UserPermission permission = new UserPermission();
         permission.setId(permissionId);
         permission.setPermission(permissionType);
